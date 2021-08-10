@@ -6,8 +6,13 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Carl Mercier"]
   spec.email         = ["foss@carlmercier.com"]
 
-  spec.summary       = %q{}
-  spec.description   = %q{}
+  spec.summary       = "Sanitize data before saving to the database"
+  spec.description   = <<~EOF
+    Sanitization provides rails-like methods for sanitizing fields before they
+    are saved to the database. Whereas validators flat-out reject improper data,
+    sanitizers take a softer approach and assume that most of the data is good,
+    it just needs a little tweaking before it is saved.
+  EOF
   spec.homepage      = "https://github.com/cmer/sanitization"
   spec.license       = "MIT"
   spec.required_ruby_version = Gem::Requirement.new(">= 2.3.0")
