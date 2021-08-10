@@ -28,4 +28,11 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
   spec.add_runtime_dependency "activerecord"
   spec.add_runtime_dependency "activesupport"
+
+  spec.add_development_dependency "bundler", "~> 2.2", ">= 2.2.25"
+  spec.add_development_dependency "byebug", "~> 11.1", ">= 11.1.3"
+  spec.add_development_dependency "rake", "~> 13.0", ">= 13.0.6"
+  spec.add_development_dependency "rspec", "~> 3.10"
+  spec.add_development_dependency "sqlite3", "~> 1.4", ">= 1.4.2"
+  spec.add_development_dependency "temping", "~> 3.10"
 end
