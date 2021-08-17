@@ -1,0 +1,74 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Rspec",
+      "type": "shell",
+      "command": "rake spec",
+      "problemMatcher": [
+        {
+          "owner": "ruby",
+          "fileLocation": [
+            "relative",
+            "${workspaceFolder}"
+          ],
+          "pattern": [
+            {
+              "regexp": "[\\d\\),]\\s(.*)",
+              "message": 1
+            },
+            {
+              "regexp": "Failure\/Error: (.*)",
+              "message": 1
+            },
+            {
+              "regexp": ".*"
+            },
+            {
+              "regexp": "(.*) with backtrace:",
+              "message": 1
+            },
+            {
+              "regexp": "\\s+#\\s+(.*):(\\d*):(.*)",
+              "file": 1,
+              "line": 2,
+            },
+            {
+              "regexp": ".*",
+              "loop": true
+            }
+          ]
+        },
+        {
+          "owner": "ruby",
+          "fileLocation": [
+            "relative",
+            "${workspaceFolder}"
+          ],
+          "pattern": [
+            {
+              "regexp": "rspec (.*):(.*) # (.*)",
+              "file": 1,
+              "line": 2,
+              "message": 3
+            }
+          ]
+        }
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": true
+      }
+    }
+  ]
+}
