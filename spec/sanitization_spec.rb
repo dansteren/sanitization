@@ -7,6 +7,7 @@ Temping.create :person do
     t.string :phone_number
     t.string :zip_code
     t.float :income
+    t.string :ssn
   end
 end
 
@@ -357,6 +358,40 @@ RSpec.describe Sanitization do
 
       it "truncates the value at the correct length" do
         expect(person.first_name).to eq("John")
+      end
+    end
+  end
+
+  describe "user-defined sanitizers" do
+    context "with a user-defined sanitizer" do
+      before do
+        ssn_sanitizer_class = Class.new do
+          def sanitize_each(record, attribute, value)
+            value.gsub(/-/, '')
+          end
+        end
+        stub_const('SsnSanitizer', ssn_sanitizer_class)
+
+        person_class = Class.new(Person) do
+          sanitizes :ssn, ssn: true
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "John", last_name: "anything", ssn: "-333-22-4444-") }
+
+      it "runs the user-defined sanitizer" do
+        expect(person.ssn).to eq("333224444")
+      end
+    end
+
+    context "when there is no matching user-defined sanitizer" do
+      it "runs the user-defined sanitizer" do
+        expect {
+          person_class = Class.new(Person) do
+            sanitizes :ssn, ssn: true
+          end
+          stub_const('Person', person_class)
+        }.to raise_error(ArgumentError, "Unknown sanitizer: :ssn")
       end
     end
   end

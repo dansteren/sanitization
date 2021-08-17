@@ -1,4 +1,5 @@
 require "sanitization/version"
+require "sanitization/each_sanitizer"
 require "sanitization/helpers"
 require "sanitization/active_record_extension"
 require "active_record" unless defined?(ActiveRecord)

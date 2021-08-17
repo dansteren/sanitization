@@ -30,7 +30,7 @@ module Sanitization
           elsif sanitizer_exists?("#{sanitizer_name.to_s.camelcase(:upper)}Sanitizer")
             self.sanitization__store[attribute][sanitizer_name] = "#{sanitizer_name.to_s.camelcase(:upper)}Sanitizer".constantize
           else
-            raise ArgumentError, "Unknown sanitizer: '#{sanitizer_name}'"
+            raise ArgumentError, "Unknown sanitizer: :#{sanitizer_name}"
           end
         end
 
@@ -46,7 +46,7 @@ module Sanitization
       def sanitizer_exists?(class_name)
         klass = Module.const_get(class_name)
         return false if !klass.is_a?(Class)
-        return (klass < Sanitization::EachSanitizer) ? true : false
+        return klass.instance_methods(false).include?(:sanitize_each)
       rescue NameError
         return false
       end
@@ -67,7 +67,12 @@ module Sanitization
       def sanitization__sanitize_attribute(attribute, config)
         original_value = self.public_send(attribute.to_sym)
         sanitized_value = config.reduce(original_value) do |value, (sanitizer, options)|
-          sanitization__apply_sanitizer(value, sanitizer, options)
+          if Sanitization::HELPERS.include?(sanitizer)
+            sanitization__apply_sanitizer(value, sanitizer, options)
+          elsif options.is_a?(Class) && options.instance_methods(false).include?(:sanitize_each)
+            user_defined_sanitizer_class = options
+            user_defined_sanitizer_class.new.sanitize_each(self, attribute, value)
+          end
         end
       end
 
@@ -100,8 +105,6 @@ module Sanitization
           options == true ? value.strip : value
         when :truncate
           value.to_s.truncate(options, omission: '')
-        else
-          raise NotImplementedError, "TODO: implement handlers for EachSanitizers"
         end
       end
 
