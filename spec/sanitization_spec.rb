@@ -6,6 +6,7 @@ Temping.create :person do
     # ActiveRecord::Base.connection.data_source_exists? is false for some reason,
     t.string :phone_number
     t.string :zip_code
+    t.float :income
   end
 end
 
@@ -266,6 +267,19 @@ RSpec.describe Sanitization do
   end
 
   describe ":round" do
+    context "with nullify set to false" do
+      before do
+        person_class = Class.new(Person) do
+          sanitizes :income, round: 2
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "John", last_name: "anything", income: 12345.7777777) }
+
+      it "rounds the number to the given decimal place" do
+        expect(person.income).to eq(12345.78)
+      end
+    end
   end
 
   describe ":squish" do
