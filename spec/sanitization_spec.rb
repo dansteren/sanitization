@@ -4,6 +4,7 @@ Temping.create :person do
     t.string :last_name, null: false
     # Need some sort of DB contraint or
     # ActiveRecord::Base.connection.data_source_exists? is false for some reason,
+    t.string :phone_number
   end
 end
 
@@ -191,6 +192,19 @@ RSpec.describe Sanitization do
   end
 
   describe ":gsub" do
+    context "with nullify set to false" do
+      before do
+        person_class = Class.new(Person) do
+          sanitizes :phone_number, gsub: { pattern: /[^0-9]/, replacement: '' }
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "John", last_name: "anything", phone_number: "+1 (801) 111-3333") }
+
+      it "performs the indicated gsub on the string" do
+        expect(person.phone_number).to eq("18011113333")
+      end
+    end
   end
 
   describe ":nullify" do
