@@ -4,39 +4,8 @@ Temping.create :person do
     t.string :last_name, null: false
     # Need some sort of DB contraint or
     # ActiveRecord::Base.connection.data_source_exists? is false for some reason,
-    t.boolean :active
-    #
-    # t.string :company
-    # t.string :address
-    # t.string :city, null: false
-    # t.string :title
-    # t.string :email, null: false
-    # t.text   :description
-    # t.text   :education
-    # t.string :do_not_collapse, null: false
-    # t.date   :dob
-    # t.integer :age
-    # t.string '1337'
   end
 end
-
-# class Person
-#   sanitizes :first_name, strip: true, truncate: 6
-#     # case: :up|:down|:camel|:snake|:title|:pascal,
-#     # gsub: { pattern: /[aeiou]/, replacement: '*' },
-#     # nullify: true, # converts empty/blank strings to null
-#     # remove: /[aeiou]/,
-#     # round: 2, # Rounds a float to the given number of decimal places
-#     # squish: true, # Removes surrounding whitespace and internal consecutive whitespace characters
-#     # ssn: true, # Custom sanitizer from EachSanitizer
-#     # strip: true, # Removes surrounding whitespace
-#     # truncate: 50, # truncates values to a given length. If we can't detect what the DB accepts
-#     # truncate: true # truncates values that are too long. Would need to know the DB limits, or we should use the next line
-
-
-#   # `sanitization` is an alias of `sanitizes`
-#   sanitize :last_name, squish: true
-# end
 
 RSpec.describe Sanitization do
   it "has a version number" do
@@ -115,6 +84,12 @@ RSpec.describe Sanitization do
     end
   end
 
+  describe ":case" do
+  end
+
+  describe ":gsub" do
+  end
+
   describe ":nullify" do
     context "with nullify set to false" do
       before do
@@ -154,6 +129,12 @@ RSpec.describe Sanitization do
         end
       end
     end
+  end
+
+  describe ":remove" do
+  end
+
+  describe ":round" do
   end
 
   describe ":squish" do
