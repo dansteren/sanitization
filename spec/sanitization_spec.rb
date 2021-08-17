@@ -79,6 +79,42 @@ RSpec.describe Sanitization do
     end
   end
 
+  describe "after_sanitization hook" do
+    context "for a model that uses sanitization" do
+      before do
+        person_class = Class.new(Person) do
+          sanitizes :first_name, nullify: true
+          after_sanitization :change_name
+
+          def change_name
+            self.first_name = "Jane"
+          end
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "    ", last_name: "anything") }
+
+      it "calls the callback" do
+        expect(person.first_name).to eq("Jane")
+      end
+    end
+
+    context "for a model that doesn't call `sanitize`" do
+      it "raises an exception" do
+        expect {
+          person_class = Class.new(Person) do
+            after_sanitization :change_name
+
+            def change_name
+              self.first_name = "Jane"
+            end
+          end
+          stub_const('Person', person_class)
+        }.to raise_error(NoMethodError, /undefined method `after_sanitization'/)
+      end
+    end
+  end
+
   describe ":nullify" do
     context "with nullify set to false" do
       before do
