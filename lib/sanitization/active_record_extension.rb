@@ -104,6 +104,20 @@ module Sanitization
           raise NotImplementedError, "TODO: implement handlers for EachSanitizers"
         end
       end
+
+      # Converts the provided value to the given case
+      #
+      # @param value [String] the value to convert
+      # @param kase [:upcase, :downcase, :camelcase, :snakecase, :titlecase, :pascalcase]
+      def sanitize_case(value, kase)
+        if kase == :camelcase
+          value.camelcase(:lower)
+        elsif kase == :pascalcase
+          value.camelcase(:upper)
+        else
+          value.send(kase)
+        end
+      end
     end # module InstanceMethods
   end # module ActiveRecordExt
 end # module Sanitization

@@ -85,6 +85,109 @@ RSpec.describe Sanitization do
   end
 
   describe ":case" do
+    context "with case set to :downcase" do
+      before do
+        person_class = Class.new(Person) do
+          sanitizes :first_name, case: :downcase
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "John", last_name: "anything") }
+
+      it "lowercases every character" do
+        expect(person.first_name).to eq("john")
+      end
+    end
+
+    context "with case set to :camelcase" do
+      before do
+        person_class = Class.new(Person) do
+          sanitizes :first_name, case: :camelcase
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "JohnPatrick", last_name: "anything") }
+
+      it "lowercases the first character, and then capitalizes the first character of every subsequent word" do
+        expect(person.first_name).to eq("johnPatrick")
+      end
+    end
+
+    context "with case set to :pascalcase" do
+      before do
+        person_class = Class.new(Person) do
+          sanitizes :first_name, case: :pascalcase
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "john_patrick", last_name: "anything") }
+
+      it "capitalizes the first character of every word and removes underscores" do
+        expect(person.first_name).to eq("JohnPatrick")
+      end
+    end
+
+    context "with case set to :titlecase" do
+      before do
+        person_class = Class.new(Person) do
+          sanitizes :first_name, case: :titlecase
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "john_patrick", last_name: "anything") }
+
+      it "capitalizes the first character of every word and converts underscores to spaces" do
+        expect(person.first_name).to eq("John Patrick")
+      end
+    end
+
+    context "with case set to :upcase" do
+      before do
+        person_class = Class.new(Person) do
+          sanitizes :first_name, case: :upcase
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "John", last_name: "anything") }
+
+      it "capitalizes every character" do
+        expect(person.first_name).to eq("JOHN")
+      end
+    end
+
+    context "with a custom case" do
+      before do
+        String.class_eval do
+          def pipecase
+            self.to_s.gsub(/[^0-9a-z]/i, '').upcase.chars.join('|')
+          end
+        end
+        person_class = Class.new(Person) do
+          sanitizes :first_name, case: :pipecase
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "john", last_name: "anything") }
+
+      it "runs the custom case conversion" do
+        expect(person.first_name).to eq("J|O|H|N")
+      end
+    end
+
+    context "with a case that isn't defined on String (like snakecase without rails)" do
+      before do
+        person_class = Class.new(Person) do
+          sanitizes :first_name, case: :snakecase
+        end
+        stub_const('Person', person_class)
+      end
+
+      it "raises an exception" do
+        expect {
+          Person.create(first_name: "JohnPatrick", last_name: "anything")
+        }.to raise_error(NoMethodError, /undefined method `snakecase' for.*String/)
+      end
+    end
   end
 
   describe ":gsub" do
