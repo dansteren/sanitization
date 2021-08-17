@@ -9,7 +9,8 @@ module Sanitization
       attr_accessor :sanitization__store
 
       private
-      def sanitizes(options = {})
+
+      def sanitizes(attribute, kwargs = {})
         # Skip initialization if table is not yet created. For example, during migrations.
         begin
           return unless ActiveRecord::Base.connection.data_source_exists?(self.table_name)
@@ -17,118 +18,91 @@ module Sanitization
           return
         end
 
+        raise ActiveModel::MissingAttributeError, "missing attribute: #{attribute}" if !has_attribute?(attribute)
+        raise ArgumentError, "You need to supply at least one sanitization" if kwargs.empty?
+
         self.sanitization__store ||= {}
+        self.sanitization__store[attribute] ||= {}
 
-        options[:only]   = Array.wrap(options[:only])
-        options[:except] = Array.wrap(options[:except])
-
-        unless options[:case].nil?
-          raise ArgumentError.new("Invalid type for `case`: #{options[:case].class}") \
-            unless [String, Symbol].include?(options[:case].class)
-          options[:case] = options[:case].downcase.to_s
-          options[:case] = options[:case] + "case" unless options[:case] =~ /case$/
-        end
-
-        columns_to_format  = self.columns.select { |c| c.type == :string }
-        columns_to_format  = columns_to_format.concat(self.columns.select { |c| c.type == :text }) \
-          if options[:include_text_type]
-
-        columns_to_format = options[:only].map do |col|
-          columns_to_format.detect { |c| c.name == col.to_s }
-        end.compact if options[:only].present?
-
-        options[:except].each do |col|
-          columns_to_format.delete_if { |c| c.name == col.to_s }
-        end
-
-        if options[:case]
-          @valid_case_methods ||= String.new.methods.map { |m|
-            m.to_s if m.to_s =~ /case$/
-          }.compact
-
-          raise ArgumentError.new("Method not found: `:#{options[:case]}`. " +
-            "Valid methods are: :#{@valid_case_methods.join(', :')}") \
-            unless @valid_case_methods.include?(options[:case]) || options[:case] == :none
-        end
-
-        columns_to_format.each do |col|
-          self.sanitization__store[col.name] ||= {}
-          self.sanitization__store[col.name].merge!(options.slice(:case, :strip, :collapse, :nullify))
-        end
-
-        class_eval <<-EOV
-          include Sanitization::ActiveRecordExtension::InstanceMethods
-          before_save :sanitization__format_strings
-        EOV
-      end
-      alias sanitization sanitizes
-    end # module ClassMethods
-
-    module InstanceMethods
-        # Taken from `strip_attributes`: https://github.com/rmm5t/strip_attributes/blob/master/lib/strip_attributes.rb
-        # Unicode invisible and whitespace characters. The POSIX character class
-        # [:space:] corresponds to the Unicode class Z ("separator"). We also
-        # include the following characters from Unicode class C ("control"), which
-        # are spaces or invisible characters that make no sense at the start or end
-        # of a string:
-        #   U+180E MONGOLIAN VOWEL SEPARATOR
-        #   U+200B ZERO WIDTH SPACE
-        #   U+200C ZERO WIDTH NON-JOINER
-        #   U+200D ZERO WIDTH JOINER
-        #   U+2060 WORD JOINER
-        #   U+FEFF ZERO WIDTH NO-BREAK SPACE
-        MULTIBYTE_WHITE = "\u180E\u200B\u200C\u200D\u2060\uFEFF".freeze
-        MULTIBYTE_SPACE = /[[:space:]#{MULTIBYTE_WHITE}]/.freeze
-        MULTIBYTE_BLANK = /[[:blank:]#{MULTIBYTE_WHITE}]/.freeze
-        MULTIBYTE_SUPPORTED = "\u0020" == " "
-
-      private
-
-      def sanitization__format_strings
-        return unless self.class.sanitization__store
-
-        class_formatting = self.class.sanitization__store
-        class_formatting.each_pair do |col_name, col_formatting|
-          sanitization__format_column(col_name, col_formatting)
-        end
-      end
-
-      def sanitization__format_column(col_name, col_formatting)
-        return unless self[col_name].is_a?(String)
-
-        self[col_name].strip! if value_or_default(col_formatting, :strip)
-
-        if value_or_default(col_formatting, :collapse)
-          if MULTIBYTE_SUPPORTED && Encoding.compatible?(self[col_name], MULTIBYTE_BLANK)
-            self[col_name].gsub!(/#{MULTIBYTE_BLANK}+/, " ")
+        kwargs.each_pair do |sanitizer_name, options|
+          if Sanitization::HELPERS.include?(sanitizer_name)
+            self.sanitization__store[attribute][sanitizer_name] = options
+          elsif sanitizer_exists?("#{sanitizer_name.to_s.camelcase(:upper)}Sanitizer")
+            self.sanitization__store[attribute][sanitizer_name] = "#{sanitizer_name.to_s.camelcase(:upper)}Sanitizer".constantize
           else
-            self[col_name].squeeze!(" ")
+            raise ArgumentError, "Unknown sanitizer: '#{sanitizer_name}'"
           end
         end
 
-        if value_or_default(col_formatting, :nullify) && !self[col_name].nil? && self[col_name].to_s.empty? && \
-          self.class.columns.select { |c| c.name == col_name }.first.null
-          return self[col_name] = nil
-        end
-
-        case_formatting_method = value_or_default(col_formatting, :case)
-        if !case_formatting_method.nil? && case_formatting_method != :none
-          self[col_name] = self[col_name].send(case_formatting_method)
-        end
-
-        self[col_name]
+        class_eval <<-RUBY
+          include Sanitization::ActiveRecordExtension::InstanceMethods
+          before_validation :sanitize!
+        RUBY
       end
 
-      def value_or_default(col_formatting, transform)
-        if col_formatting[transform].nil?
-          Sanitization.configuration[transform]
+      alias sanitize sanitizes
+
+      def sanitizer_exists?(class_name)
+        klass = Module.const_get(class_name)
+        return false if !klass.is_a?(Class)
+        return (klass < Sanitization::EachSanitizer) ? true : false
+      rescue NameError
+        return false
+      end
+    end # module ClassMethods
+
+    module InstanceMethods
+      private
+
+      def sanitize!
+        return unless self.class.sanitization__store
+        run_callbacks :sanitization do
+          self.class.sanitization__store.each_pair do |attribute, config|
+            self.public_send("#{attribute}=".to_sym, sanitization__sanitize_attribute(attribute, config))
+          end
+        end
+      end
+
+      def sanitization__sanitize_attribute(attribute, config)
+        original_value = self.public_send(attribute.to_sym)
+        sanitized_value = config.reduce(original_value) do |value, (sanitizer, options)|
+          sanitization__apply_sanitizer(value, sanitizer, options)
+        end
+      end
+
+      # @return the modified attribute value
+      def sanitization__apply_sanitizer(value, sanitizer, options)
+        case sanitizer
+        when :case
+          sanitize_case(value, options)
+        when :gsub
+          value.gsub(options[:pattern], options[:replacement])
+        when :nullify
+          if options == true
+            if value == false
+              value
+            elsif value.blank?
+              nil
+            else
+              value
+            end
+          else
+            value
+          end
+        when :remove
+          value.remove(options)
+        when :round
+          value.round(options)
+        when :squish
+          options == true ? value.squish : value
+        when :strip
+          options == true ? value.strip : value
+        when :truncate
+          value.to_s.truncate(options, omission: '')
         else
-          col_formatting[transform]
+          raise NotImplementedError, "TODO: implement handlers for EachSanitizers"
         end
       end
-
-
     end # module InstanceMethods
   end # module ActiveRecordExt
 end # module Sanitization
-

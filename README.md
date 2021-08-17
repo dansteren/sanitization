@@ -2,46 +2,17 @@
 
 Sanitization makes it easy to store slightly cleaner strings to your database.
 
-
-### Features (all optional):
+## Features
 
 - White space stripping
-- White space collapsing (multiple consecutive spaces combined into one)
-- Empty string to nil (if database column supports it)
+- White space squishing (multiple consecutive spaces combined into one)
+- Blank string to nil (if database column supports it)
 - Change casing (ie. upcase, downcase, titlecase, etc)
-
-
-### Defaults
-
-By default, Sanitization has all options disabled. It is recommended you use a configuration block to set
-sensitive defaults for your projects.
-
-For example, I use:
-
-```ruby
-# config/initializers/sanitization.rb
-
-Sanitization.configure do |config|
-  config.strip = true
-  config.collapse = true
-  config.nullify = true
-end
-
-# or you can use the following shortcut instead:
-
-Sanitization.simple_defaults!
-```
-
-
-### Configuration Options
-
-- Strip leading & training white spaces (`strip: true|false`)
-- Collapse consecutive spaces (`collapse: true|false`)
-- Store empty strings as `null` if the database column allows it (`nullify: true|false`)
-- All String columns are sanitized (`only: nil, except: nil`)
-- Also sanitize strings of type `text` (`include_text_type: true|false`)
-- Change casing: (`case: :none|:up|:down|:custom`)
-
+- Global substitution of regex (gsub)
+- Removing a specified pattern
+- Rounding decimal places
+- Truncating large strings
+- Before and after callbacks
 
 ## Installation
 
@@ -49,64 +20,45 @@ Sanitization.simple_defaults!
 bundle add sanitization
 ```
 
-
 ## Usage
 
 ```ruby
+class MyModel < ActiveRecord::Base
+  # Single sanitizer
+  sanitizes :attribute_1, strip: true
 
-# Assuming the following configuration block:
-Sanitization.configure do |config|
-  config.strip = true
-  config.collapse = true
-  config.nullify = true
+  # Using `sanitize` instead of `sanitizes
+  sanitize :attribute_2, strip: true
+
+  # Multiple sanitizers
+  sanitizes :attribute_3,
+    case: :up|:down|:camel|:snake|:title|:pascal, # Converts to different cases
+    gsub: { pattern: /[aeiou]/, replacement: '*' }, # Replaces all occurences of a pattern
+    nullify: true, # Converts empty/blank strings to null
+    remove: /[aeiou]/, # Removes all occurences of a pattern
+    round: 2, # Rounds a float to the given number of decimal places
+    squish: true, # Removes surrounding and internal consecutive whitespace characters
+    ssn: true, # Custom sanitizer from EachSanitizer
+    strip: true, # Removes surrounding whitespace
+    truncate: 50, # Truncates values to a given length
+
+  # Supports lifecycle hooks
+  before_sanitization :pre_log
+  after_sanitization  :post_log
+
+  def pre_log
+    puts "About to start running sanitization..."
+  end
+
+  def post_log
+    puts "Finished running sanitization!"
+  end
 end
-
-# Default settings for all strings
-class Person < ApplicationModel
-  sanitizes
-  # is equivalent to:
-  sanitizes strip: true, collapse: true, include_text_type: false
-end
-
-# Default settings for all strings, except a specific column
-class Person < ApplicationModel
-  sanitizes except: :alias
-end
-
-# Default settings + titlecase for specific columns
-class Person < ApplicationModel
-  sanitizes only: [:first_name, :last_name], case: :title
-end
-
-# Complex example. All these lines could be used in combination.
-class Person
-  # Apply default settings and `titlecase` to all string columns, except `description`.
-  sanitizes case: :title, except: :description
-
-  # Keep previous settings, but specify `upcase` for 2 columns.
-  sanitizes only: [:first_name, :last_name], case: :up
-
-  # Keep previous settings, but specify `downcase` for a single column.
-  sanitizes only: :email, case: :downcase
-
-  # Apply default settings to column `description`, of type `text`. By default, `text` type is NOT sanitized.
-  sanitizes only: :description, include_text_type: true
-
-  # Disable collapsing for `do_not_collapse`.
-  sanitizes only: :do_not_collapse, collapse: false
-
-  # Sanitize with a custom casing method named `leetcase` for the `133t` column.
-  # Don't nullify empty strings.
-  sanitizes only: '1337', case: :leet, nullify: false
-end
-
 ```
-
 
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
 
 ## License
 
