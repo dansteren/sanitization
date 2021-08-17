@@ -43,7 +43,7 @@ RSpec.describe Sanitization do
     expect(Sanitization::VERSION).not_to be nil
   end
 
-  describe "before_sanitization" do
+  describe "before_sanitization hook" do
     context "for a model that uses sanitization" do
       before do
         person_class = Class.new(Person) do
@@ -63,21 +63,18 @@ RSpec.describe Sanitization do
       end
     end
 
-    context "for a model that doesn't use sanitization" do
-      before do
-        person_class = Class.new(Person) do
-          before_sanitization :change_name
+    context "for a model that doesn't call `sanitize`" do
+      it "raises an exception" do
+        expect {
+          person_class = Class.new(Person) do
+            before_sanitization :change_name
 
-          def change_name
-            self.first_name = "Jane"
+            def change_name
+              self.first_name = "Jane"
+            end
           end
-        end
-        stub_const('Person', person_class)
-      end
-      let!(:person) { Person.create(first_name: "John", last_name: "anything") }
-
-      it "doesn't call the callback" do
-        expect(person.first_name).to eq("John")
+          stub_const('Person', person_class)
+        }.to raise_error(NoMethodError, /undefined method `before_sanitization'/)
       end
     end
   end

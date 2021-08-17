@@ -36,6 +36,7 @@ module Sanitization
 
         class_eval <<-RUBY
           include Sanitization::ActiveRecordExtension::InstanceMethods
+          define_model_callbacks :sanitization, only: [:before, :after]
           before_validation :sanitize!
         RUBY
       end

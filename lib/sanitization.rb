@@ -9,5 +9,4 @@ end
 
 ActiveRecord::Base.class_eval do
   include Sanitization::ActiveRecordExtension
-  define_model_callbacks :sanitization, only: [:before, :after]
 end
