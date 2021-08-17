@@ -5,6 +5,7 @@ Temping.create :person do
     # Need some sort of DB contraint or
     # ActiveRecord::Base.connection.data_source_exists? is false for some reason,
     t.string :phone_number
+    t.string :zip_code
   end
 end
 
@@ -249,6 +250,19 @@ RSpec.describe Sanitization do
   end
 
   describe ":remove" do
+    context "with nullify set to false" do
+      before do
+        person_class = Class.new(Person) do
+          sanitizes :zip_code, remove: "-"
+        end
+        stub_const('Person', person_class)
+      end
+      let!(:person) { Person.create(first_name: "John", last_name: "anything", zip_code: "55555-4444-") }
+
+      it "removes the specified value from the string" do
+        expect(person.zip_code).to eq("555554444")
+      end
+    end
   end
 
   describe ":round" do
