@@ -418,4 +418,56 @@ RSpec.describe Sanitization do
       expect(person.last_name).to eq("Potter")
     end
   end
+
+  context "with all the different possible sanitizers" do
+    before do
+      ssn_sanitizer_class = Class.new do
+        def sanitize_each(record, attribute, value)
+          value.gsub(/-/, '')
+        end
+      end
+      stub_const('SsnSanitizer', ssn_sanitizer_class)
+
+      person_sanitizer_class = Class.new do
+        def sanitize(record)
+          record.first_name = record.first_name[0,3] + "Harry"
+        end
+      end
+      stub_const('PersonSanitizer', person_sanitizer_class)
+
+      person_class = Class.new(Person) do
+        sanitizes :first_name, case: :downcase
+        sanitizes :last_name, case: :upcase, truncate: 6
+        sanitizes :zip_code, remove: "-"
+        sanitizes :ssn, ssn: true
+        sanitizes_with PersonSanitizer
+
+        before_sanitization :prepend
+        after_sanitization :append
+
+        def prepend
+          self.first_name = "PRE" + self.first_name
+        end
+        def append
+          self.first_name += "POST"
+        end
+      end
+      stub_const('Person', person_class)
+    end
+    let!(:person) do
+      Person.create(
+        first_name: "John",
+        last_name: "Jingleheimer",
+        zip_code: "55555-4444-",
+        ssn: "-333-22-4444-"
+      )
+    end
+
+    it "runs everything, running standard sanitizers first, and model sanitizer next" do
+      expect(person.first_name).to eq("preHarryPOST")
+      expect(person.last_name).to eq("JINGLE")
+      expect(person.zip_code).to eq("555554444")
+      expect(person.ssn).to eq("333224444")
+    end
+  end
 end
