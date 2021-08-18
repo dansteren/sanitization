@@ -43,6 +43,28 @@ module Sanitization
 
       alias sanitize sanitizes
 
+      def sanitizes_with(sanitizer)
+        # Skip initialization if table is not yet created. For example, during migrations.
+        begin
+          return unless ActiveRecord::Base.connection.data_source_exists?(self.table_name)
+        rescue ActiveRecord::NoDatabaseError
+          return
+        end
+
+        unless sanitizer.is_a?(Class) && sanitizer.instance_methods(false).include?(:sanitize)
+          raise ArgumentError, "Unknown sanitizer: '#{sanitizer}'"
+        end
+
+        self.sanitization__store ||= {}
+        self.sanitization__store[:__model_sanitizer] = sanitizer
+
+        class_eval <<-RUBY
+          include Sanitization::ActiveRecordExtension::InstanceMethods
+          define_model_callbacks :sanitization, only: [:before, :after]
+          before_validation :sanitize!
+        RUBY
+      end
+
       def sanitizer_exists?(class_name)
         klass = Module.const_get(class_name)
         return false if !klass.is_a?(Class)
@@ -59,7 +81,13 @@ module Sanitization
         return unless self.class.sanitization__store
         run_callbacks :sanitization do
           self.class.sanitization__store.each_pair do |attribute, config|
-            self.public_send("#{attribute}=".to_sym, sanitization__sanitize_attribute(attribute, config))
+            if attribute != :__model_sanitizer
+              sanitized_value = sanitization__sanitize_attribute(attribute, config)
+              self.public_send("#{attribute}=".to_sym, sanitized_value)
+            end
+          end
+          if self.class.sanitization__store[:__model_sanitizer].present?
+            self.class.sanitization__store[:__model_sanitizer].new.sanitize(self)
           end
         end
       end
@@ -111,7 +139,9 @@ module Sanitization
       # Converts the provided value to the given case
       #
       # @param value [String] the value to convert
-      # @param kase [:upcase, :downcase, :camelcase, :snakecase, :titlecase, :pascalcase]
+      # @param kase [:upcase, :downcase, :camelcase, :snakecase, :titlecase,
+      #   :pascalcase] the case to convert to
+      # @return [String]
       def sanitize_case(value, kase)
         if kase == :camelcase
           value.camelcase(:lower)

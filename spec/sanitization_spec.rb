@@ -3,7 +3,7 @@ Temping.create :person do
     t.string :first_name
     t.string :last_name, null: false
     # Need some sort of DB contraint or
-    # ActiveRecord::Base.connection.data_source_exists? is false for some reason,
+    # ActiveRecord::Base.connection.data_source_exists? is false for some reason
     t.string :phone_number
     t.string :zip_code
     t.float :income
@@ -393,6 +393,29 @@ RSpec.describe Sanitization do
           stub_const('Person', person_class)
         }.to raise_error(ArgumentError, "Unknown sanitizer: :ssn")
       end
+    end
+  end
+
+  describe "custom standalone model validator" do
+    before do
+      person_sanitizer_class = Class.new do
+        def sanitize(record)
+          record.first_name = "Harry"
+          record.last_name = "Potter"
+        end
+      end
+      stub_const('PersonSanitizer', person_sanitizer_class)
+
+      person_class = Class.new(Person) do
+        sanitizes_with PersonSanitizer
+      end
+      stub_const('Person', person_class)
+    end
+    let!(:person) { Person.create(first_name: "John", last_name: "anything") }
+
+    it "runs the user-defined sanitizer" do
+      expect(person.first_name).to eq("Harry")
+      expect(person.last_name).to eq("Potter")
     end
   end
 end
