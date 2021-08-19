@@ -13,6 +13,10 @@ RSpec.configure do |config|
   config.expect_with :rspec do |c|
     c.syntax = :expect
   end
+
+  config.after do
+    Temping.teardown
+  end
 end
 
 ActiveRecord::Base.establish_connection(adapter: 'sqlite3', database: ':memory:')
