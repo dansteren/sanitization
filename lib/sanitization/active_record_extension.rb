@@ -110,7 +110,7 @@ module Sanitization
         when :case
           sanitize_case(value, options)
         when :gsub
-          value.gsub(options[:pattern], options[:replacement])
+          value&.gsub(options[:pattern], options[:replacement])
         when :nullify
           if options == true
             if value == false
@@ -124,13 +124,13 @@ module Sanitization
             value
           end
         when :remove
-          value.remove(options)
+          value&.remove(options)
         when :round
-          value.round(options)
+          value&.round(options)
         when :squish
-          options == true ? value.squish : value
+          options == true ? value&.squish : value
         when :strip
-          options == true ? value.strip : value
+          options == true ? value&.strip : value
         when :truncate
           value.to_s.truncate(options, omission: '')
         end
@@ -143,6 +143,8 @@ module Sanitization
       #   :pascalcase] the case to convert to
       # @return [String]
       def sanitize_case(value, kase)
+        return value if value.nil?
+
         if kase == :camelcase
           value.camelcase(:lower)
         elsif kase == :pascalcase

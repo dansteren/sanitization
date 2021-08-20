@@ -205,6 +205,24 @@ RSpec.describe Sanitization do
         }.to raise_error(NoMethodError, /undefined method `snakecase' for.*String/)
       end
     end
+
+    context "with a nil value" do
+      before do
+        Temping.create :person do
+          with_columns do |t|
+            t.string :first_name
+            t.string :last_name, null: false
+          end
+          sanitizes :first_name, case: :upcase
+        end
+      end
+
+      it "doesn't raise an exception" do
+        expect {
+          Person.create
+        }.to_not raise_error(NoMethodError, "undefined method `upcase' for nil:NilClass")
+      end
+    end
   end
 
   describe ":gsub" do
@@ -218,10 +236,21 @@ RSpec.describe Sanitization do
           sanitizes :phone_number, gsub: { pattern: /[^0-9]/, replacement: '' }
         end
       end
-      let!(:person) { Person.create(first_name: "John", phone_number: "+1 (801) 111-3333") }
 
-      it "performs the indicated gsub on the string" do
-        expect(person.phone_number).to eq("18011113333")
+      context "with a non-nil value" do
+        let!(:person) { Person.create(first_name: "John", phone_number: "+1 (801) 111-3333") }
+
+        it "performs the indicated gsub on the string" do
+          expect(person.phone_number).to eq("18011113333")
+        end
+      end
+
+      context "with a nil value" do
+        it "doesn't raise an exception" do
+          expect {
+            Person.create(first_name: "John")
+          }.to_not raise_error(NoMethodError, "undefined method `gsub' for nil:NilClass")
+        end
       end
     end
   end
@@ -263,6 +292,14 @@ RSpec.describe Sanitization do
         end
       end
 
+      context "with a nil value" do
+        it "doesn't raise an exception" do
+          expect {
+            Person.create(last_name: "anything")
+          }.to_not raise_error
+        end
+      end
+
       context "with a present value" do
         let!(:person) { Person.create(first_name: "John", last_name: "anything") }
 
@@ -284,10 +321,21 @@ RSpec.describe Sanitization do
           sanitizes :zip_code, remove: "-"
         end
       end
-      let!(:person) { Person.create(first_name: "John", zip_code: "55555-4444-") }
 
-      it "removes the specified value from the string" do
-        expect(person.zip_code).to eq("555554444")
+      context "with a non-nil value" do
+        let!(:person) { Person.create(first_name: "John", zip_code: "55555-4444-") }
+
+        it "removes the specified value from the string" do
+          expect(person.zip_code).to eq("555554444")
+        end
+      end
+
+      context "with a nil value" do
+        it "doesn't raise an exception" do
+          expect {
+            Person.create(first_name: "John")
+          }.to_not raise_error(NoMethodError, "undefined method `remove' for nil:NilClass")
+        end
       end
     end
   end
@@ -303,10 +351,21 @@ RSpec.describe Sanitization do
           sanitizes :income, round: 2
         end
       end
-      let!(:person) { Person.create(first_name: "John", income: 12345.7777777) }
 
-      it "rounds the number to the given decimal place" do
-        expect(person.income).to eq(12345.78)
+      context "with a non-nil value" do
+        let!(:person) { Person.create(first_name: "John", income: 12345.7777777) }
+
+        it "rounds the number to the given decimal place" do
+          expect(person.income).to eq(12345.78)
+        end
+      end
+
+      context "with a nil value" do
+        it "doesn't raise an exception" do
+          expect {
+            Person.create(first_name: "John")
+          }.to_not raise_error(NoMethodError, "undefined method `round' for nil:NilClass")
+        end
       end
     end
   end
@@ -316,15 +375,27 @@ RSpec.describe Sanitization do
       before do
         Temping.create :person do
           with_columns do |t|
-            t.string :first_name, null: false
+            t.string :first_name
+            t.string :last_name, null: false
           end
           sanitizes :first_name, squish: true
         end
       end
-      let!(:person) { Person.create(first_name: "    John    John    ") }
 
-      it "removes all whitespace on both ends of the string and changes remaining consecutive whitespace groups into one space each." do
-        expect(person.first_name).to eq("John John")
+      context "with a non-nil value" do
+        let!(:person) { Person.create(first_name: "    John    John    ", last_name: "Anything") }
+
+        it "removes all whitespace on both ends of the string and changes remaining consecutive whitespace groups into one space each." do
+          expect(person.first_name).to eq("John John")
+        end
+      end
+
+      context "with a nil value" do
+        it "doesn't raise an exception" do
+          expect {
+            Person.create(last_name: "Anything")
+          }.to_not raise_error(NoMethodError, "undefined method `squish' for nil:NilClass")
+        end
       end
     end
 
@@ -349,14 +420,15 @@ RSpec.describe Sanitization do
     before do
       Temping.create :person do
         with_columns do |t|
-          t.string :first_name, null: false
+          t.string :first_name
+          t.string :last_name, null: false
         end
         sanitizes :first_name, strip: true
       end
     end
 
     context "with a value containing leading whitespace" do
-      let!(:person) { Person.create(first_name: "    John") }
+      let!(:person) { Person.create(first_name: "    John", last_name: "Anything") }
 
       it "strips the leading whitespace" do
         expect(person.first_name).to eq("John")
@@ -364,7 +436,7 @@ RSpec.describe Sanitization do
     end
 
     context "with a value containing trailing whitespace" do
-      let!(:person) { Person.create(first_name: "John     ") }
+      let!(:person) { Person.create(first_name: "John     ", last_name: "Anything") }
 
       it "strips the trailing whitespace" do
         expect(person.first_name).to eq("John")
@@ -372,10 +444,18 @@ RSpec.describe Sanitization do
     end
 
     context "with a value containing multiple whitespace characters in the middle" do
-      let!(:person) { Person.create(first_name: "Jo    hn") }
+      let!(:person) { Person.create(first_name: "Jo    hn", last_name: "Anything") }
 
       it "leaves the value unchanged" do
         expect(person.first_name).to eq("Jo    hn")
+      end
+    end
+
+    context "with a nil value" do
+      it "doesn't raise an exception" do
+        expect {
+          Person.create(last_name: "Anything")
+        }.to_not raise_error(NoMethodError, "undefined method `strip' for nil:NilClass")
       end
     end
   end
@@ -390,10 +470,19 @@ RSpec.describe Sanitization do
           sanitizes :first_name, truncate: 4
         end
       end
-      let!(:person) { Person.create(first_name: "Johnny") }
 
-      it "truncates the value at the correct length" do
-        expect(person.first_name).to eq("John")
+      context "with a non-nil value" do
+        let!(:person) { Person.create(first_name: "Johnny") }
+
+        it "truncates the value at the correct length" do
+          expect(person.first_name).to eq("John")
+        end
+      end
+
+      context "with a nil value" do
+        it "doesn't raise an exception" do
+          expect { Person.create }.to_not raise_error(NoMethodError)
+        end
       end
     end
   end
