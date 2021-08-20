@@ -38,6 +38,12 @@ class SsnSanitizer < Sanitization::EachSanitizer
   end
 end
 
+class MyCustomModelSanitizer
+  def sanitize(record)
+    record.attribute_5 = some_complex_logic(record.attribute_5)
+  end
+end
+
 class MyModel < ActiveRecord::Base
   # Single sanitizer
   sanitizes :attribute_1, strip: true
@@ -58,6 +64,8 @@ class MyModel < ActiveRecord::Base
 
   sanitizes :attribute_4, ssn: true, # Custom sanitizer declared by SsnSanitizer
 
+  sanitizes_with MyCustomModelSanitizer
+
   # Supports lifecycle hooks
   before_sanitization :pre_log
   after_sanitization  :post_log
@@ -71,6 +79,23 @@ class MyModel < ActiveRecord::Base
   end
 end
 ```
+
+### Built-in Sanitizers
+
+Sanitization comes with a few built-in sanitizers. They include:
+
+- case
+- gsub
+- nullify
+- remove
+- round
+- squish
+- strip
+- truncate
+
+See above for usage examples. If these aren't sufficient for your needs then we recommend creating your own custom sanitizers either for a specific field or for an entire model. Both are supported.
+
+We recommend storing custom sanitizers in the `app/sanitizers` directory in your rails app.
 
 ## Development
 
